@@ -9,8 +9,8 @@
         /* 提示框样式 */
         .tooltip-box {
             display: none;
-            position: fixed;
-            background: rgba(0, 0, 0, 0.8);
+            position: absolute;
+            background: rgba(0, 0, 0, 0.85);
             color: white;
             padding: 10px;
             border-radius: 5px;
@@ -18,6 +18,9 @@
             max-width: 80%;
             z-index: 1000;
             line-height: 1.4;
+            pointer-events: none;
+            white-space: pre-line;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
         }
 
         /* 有提示的文本样式 */
@@ -349,78 +352,28 @@
 
     showSlide(currentSlide);
 
-    let tooltipBox = null;
-    let touchTimer = null;
-    const TOUCH_DELAY = 500;
-
-    function createTooltipBox() {
-        if (!tooltipBox) {
+    document.querySelectorAll('span[data-tooltip]').forEach(element => {
+        let tooltipBox = null;
+        element.addEventListener('mouseenter', (e) => {
+            const tooltipText = element.getAttribute('data-tooltip');
             tooltipBox = document.createElement('div');
             tooltipBox.className = 'tooltip-box';
+            tooltipBox.textContent = tooltipText;
             document.body.appendChild(tooltipBox);
-        }
-        return tooltipBox;
-    }
 
-    function showTooltip(text, x, y) {
-        const tooltip = createTooltipBox();
-        tooltip.textContent = text;
-        tooltip.style.display = 'block';
-        
-        const rect = tooltip.getBoundingClientRect();
-        const viewportWidth = window.innerWidth;
-        const viewportHeight = window.innerHeight;
-        
-        if (x + rect.width > viewportWidth) {
-            x = viewportWidth - rect.width - 10;
-        }
-        if (x < 0) x = 10;
-        
-        if (y + rect.height > viewportHeight) {
-            y = y - rect.height - 20;
-        }
-        if (y < 0) y = 10;
-        
-        tooltip.style.left = x + 'px';
-        tooltip.style.top = y + 'px';
-    }
-
-    function hideTooltip() {
-        if (tooltipBox) {
-            tooltipBox.style.display = 'none';
-        }
-        if (touchTimer) {
-            clearTimeout(touchTimer);
-            touchTimer = null;
-        }
-    }
-
-    document.querySelectorAll('span[data-tooltip]').forEach(element => {
-        const tooltipText = element.getAttribute('data-tooltip');
-        element.setAttribute('data-tooltip', tooltipText);
-        element.removeAttribute('title');
-        
-        element.addEventListener('touchstart', (e) => {
-            const touch = e.touches[0];
-            touchTimer = setTimeout(() => {
-                showTooltip(tooltipText, touch.clientX, touch.clientY - 40);
-            }, TOUCH_DELAY);
-        }, { passive: true });
-
-        element.addEventListener('touchend', () => {
-            hideTooltip();
-        });
-
-        element.addEventListener('touchmove', () => {
-            hideTooltip();
-        });
-
-        element.addEventListener('mouseenter', (e) => {
-            showTooltip(tooltipText, e.clientX, e.clientY - 40);
+            const rect = element.getBoundingClientRect();
+            const scrollY = window.scrollY || window.pageYOffset;
+            const scrollX = window.scrollX || window.pageXOffset;
+            tooltipBox.style.left = (rect.left + scrollX) + 'px';
+            tooltipBox.style.top = (rect.bottom + scrollY + 8) + 'px';
+            tooltipBox.style.display = 'block';
         });
 
         element.addEventListener('mouseleave', () => {
-            hideTooltip();
+            if (tooltipBox) {
+                tooltipBox.remove();
+                tooltipBox = null;
+            }
         });
     });
 </script>
