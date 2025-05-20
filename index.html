@@ -27,6 +27,20 @@
         [data-tooltip] {
             border-bottom: 1px dotted #666;
         }
+
+        /* 移动端样式 */
+        @media (max-width: 768px) {
+            .tooltip-box {
+                position: fixed;
+                left: 50% !important;
+                top: 50% !important;
+                transform: translate(-50%, -50%);
+                width: 90%;
+                max-width: 300px;
+                text-align: center;
+                pointer-events: auto;
+            }
+        }
     </style>
 </head>
 <body>
@@ -268,6 +282,7 @@
     let currentSlide = 0;
     let touchStartX = null;
     let touchStartY = null;
+    let isSwiping = false;
 
     function showSlide(index) {
         slides.forEach((slide, i) => {
@@ -292,56 +307,42 @@
         }
     }
 
-    function handleTouchStart(e) {
-        touchStartX = e.touches[0].clientX;
-        touchStartY = e.touches[0].clientY;
-    }
+    // 只在容器区域监听
+    const container = document.querySelector('.container');
 
-    function handleTouchMove(e) {
-        if (!touchStartX || !touchStartY) {
-            return;
+    container.addEventListener('touchstart', function(e) {
+        if (e.touches.length === 1) {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            isSwiping = true;
         }
+    }, { passive: true });
 
-        const touchEndX = e.touches[0].clientX;
-        const touchEndY = e.touches[0].clientY;
+    container.addEventListener('touchmove', function(e) {
+        if (!isSwiping || e.touches.length !== 1) return;
+    }, { passive: true });
 
-        const deltaX = touchStartX - touchEndX;
-        const deltaY = touchStartY - touchEndY;
-
-        if (Math.abs(deltaX) > Math.abs(deltaY)) {
-            e.preventDefault();
-        }
-    }
-
-    function handleTouchEnd(e) {
-        if (!touchStartX) {
-            return;
-        }
-
+    container.addEventListener('touchend', function(e) {
+        if (!isSwiping || touchStartX === null || touchStartY === null) return;
         const touchEndX = e.changedTouches[0].clientX;
         const touchEndY = e.changedTouches[0].clientY;
-
-        const deltaX = touchStartX - touchEndX;
-        const deltaY = touchStartY - touchEndY;
-
+        const deltaX = touchEndX - touchStartX;
+        const deltaY = touchEndY - touchStartY;
         const minSwipeDistance = 50;
 
         if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > minSwipeDistance) {
-            if (deltaX > 0) {
+            if (deltaX < 0) {
                 nextSlide();
             } else {
                 prevSlide();
             }
         }
-
         touchStartX = null;
         touchStartY = null;
-    }
+        isSwiping = false;
+    }, { passive: true });
 
-    document.addEventListener('touchstart', handleTouchStart, { passive: false });
-    document.addEventListener('touchmove', handleTouchMove, { passive: false });
-    document.addEventListener('touchend', handleTouchEnd);
-
+    // 键盘事件不变
     document.addEventListener('keydown', (event) => {
         if (event.key === 'ArrowRight') {
             nextSlide();
@@ -352,9 +353,12 @@
 
     showSlide(currentSlide);
 
+    // tooltip 代码
     document.querySelectorAll('span[data-tooltip]').forEach(element => {
         let tooltipBox = null;
-        element.addEventListener('mouseenter', (e) => {
+
+        // 显示 tooltip 的函数
+        function showTooltip(e) {
             const tooltipText = element.getAttribute('data-tooltip');
             tooltipBox = document.createElement('div');
             tooltipBox.className = 'tooltip-box';
@@ -367,12 +371,30 @@
             tooltipBox.style.left = (rect.left + scrollX) + 'px';
             tooltipBox.style.top = (rect.bottom + scrollY + 8) + 'px';
             tooltipBox.style.display = 'block';
-        });
+        }
 
-        element.addEventListener('mouseleave', () => {
+        // 隐藏 tooltip 的函数
+        function hideTooltip() {
             if (tooltipBox) {
                 tooltipBox.remove();
                 tooltipBox = null;
+            }
+        }
+
+        // PC 端用鼠标事件
+        element.addEventListener('mouseenter', showTooltip);
+        element.addEventListener('mouseleave', hideTooltip);
+
+        // 移动端用触摸事件
+        element.addEventListener('touchstart', function(e) {
+            e.preventDefault(); // 阻止默认行为，避免触发其他事件
+            showTooltip(e);
+        });
+
+        // 点击其他地方隐藏 tooltip
+        document.addEventListener('touchstart', function(e) {
+            if (tooltipBox && !element.contains(e.target)) {
+                hideTooltip();
             }
         });
     });
